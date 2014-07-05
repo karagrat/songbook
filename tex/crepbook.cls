@@ -54,7 +54,7 @@
 \ProcessOptions
 
 % Base class
-\LoadClass[a4paper]{article}
+\LoadClass{article}
 
 % Main packages
 \RequirePackage{graphicx,xcolor}
@@ -73,6 +73,7 @@
 \RequirePackage{xstring}
 \RequirePackage{ifthen}
 \RequirePackage{framed}
+\RequirePackage{currfile}
 
 \iflyric%
   \tabsfalse%
@@ -202,7 +203,7 @@
 \setlength{\coverspace}{0.1cm}
 \newcommand{\songcover}{}
 \newcommand{\songalbum}{}
-\newsongkey{cov}{\let\songcover\@empty}{\def\songcover{#1}}
+\newsongkey{cov}{\let\songcover\@empty}{\def\songcover{\currfiledir#1}}
 \newsongkey{album}{\let\songalbum\@empty}{\def\songalbum{#1}}
 \newsongkey{url}{\let\songurl\@empty}{\def\songurl{#1}}
 \newsongkey{original}{\let\songoriginal\@empty}{\def\songoriginal{#1}}
@@ -310,7 +311,7 @@
 
 \newcommand{\lilypond}[1]{%
   \iflilypond%
-  \IfFileExists{./lilypond/#1.pdf}{\includegraphics{./lilypond/#1}}{}%
+  \includegraphics{#1}%
   \fi%
 }
 
@@ -334,19 +335,6 @@
 \renewcommand{\idxauthfont}{\sffamily\bfseries}
 \renewcommand{\idxheadfont}{\sffamily\it\LARGE}
 \renewcommand{\idxrefsfont}{\bfseries}
-
-%
-% Customization of the page appearance
-%
-\RequirePackage[
-  a4paper % paper size
-  ,includeheadfoot % include header and footer into text size
-  ,hmarginratio=1:1 % ratio between inner and outer margin (default)
-  ,outer=1.8cm % outer margin (right)
-  ,vmarginratio=1:1 % ratio between top and bottom margin
-  ,bmargin=1.3cm % bottom margin
-% ,bindingoffset=1.7cm % space reserved to bound pages together
-  ]{geometry}
 
 % Paragraph indentation space
 \setlength{\parindent}{0.3cm}

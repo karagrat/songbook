@@ -4,68 +4,61 @@
 
 import getopt, sys
 import os.path
-import glob
 import re
 import json
 import locale
 import shutil
 import locale
+import platform
+
+from utils.utils import recursiveFind
 
 reTitle  = re.compile('(?<=beginsong\\{)(.(?<!\\}]))+')
 reArtist = re.compile('(?<=by=)(.(?<![,\\]\\}]))+')
 reAlbum  = re.compile('(?<=album=)(.(?<![,\\]\\}]))+')
 
 class Song:
-   def __init__(self, title, artist, album, path):
-      self.title  = title
-      self.artist = artist
-      self.album  = album
-      self.path   = path
-   def __repr__(self):
-      return repr((self.title, self.artist, self.album, self.path))
-
-def copyCovers():
-   '''
-   Copy all covers found in songs/ hierarchy into a same folder.  This
-   allows a much faster search for pdflatex since the \graphicspath
-   macro now only contains a single directory instead of quite a long
-   list to search through.
-   '''
-   #create "covers/" directory if it does not exist
-   d = os.path.dirname("covers/")
-   if not os.path.exists(d):
-      os.makedirs(d)
-
-   covers = list(set(glob.glob('songs/*/*.jpg')))
-   for cover in covers:
-      f = "covers/" + os.path.basename(cover)
-      if(os.path.exists(f) == False):
-         shutil.copy(cover, f)
+    def __init__(self, title, artist, album, path):
+        self.title  = title
+        self.artist = artist
+        self.album  = album
+        self.path   = path
+    def __repr__(self):
+        return repr((self.title, self.artist, self.album, self.path))
 
 def matchRegexp(reg, iterable):
     return [ m.group(1) for m in (reg.match(l) for l in iterable) if m ]
 
-def songslist(songs):
-   song_objects = []
-   for s in songs:
-      path = 'songs/'+s
-      with open(path, 'r+') as f:
-         data   = f.read()
-         title  = reTitle.search(data).group(0)
-         artist = reArtist.search(data.replace("{","")).group(0)
-         match  = reAlbum.search(data.replace("{",""))
-         if match:
-            album = match.group(0)
-         else:
-            album = ''
-         song_objects.append(Song(title, artist, album, path))
+def unprefixed(title, prefixes):
+    """Remove the first prefix of the list in the beginning of title (if any).
+    """
+    for prefix in prefixes:
+        match = re.compile(r"^(%s)\b\s*(.*)$" % prefix).match(title)
+        if match:
+            return match.group(2)
+    return title
 
-   song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(x.title))
-   song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(x.album))
-   song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(x.artist))
+def songslist(library, songs, prefixes):
+    song_objects = []
+    for s in songs:
+        path = library + 'songs/' + s
+        with open(path, 'r+') as f:
+            data   = f.read()
+            title  = reTitle.search(data).group(0)
+            artist = reArtist.search(data.replace("{","")).group(0)
+            match  = reAlbum.search(data.replace("{",""))
+            if match:
+                album = match.group(0)
+            else:
+                album = ''
+            song_objects.append(Song(title, artist, album, path))
 
-   result = [ '\\input{{{0}}}'.format(song.path.replace("\\","/").strip()) for song in song_objects ]
-   return '\n'.join(result)
+    song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(unprefixed(x.title, prefixes)))
+    song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(x.album))
+    song_objects = sorted(song_objects, key=lambda x: locale.strxfrm(x.artist))
+
+    result = [ '\\input{{{0}}}'.format(song.path.replace("\\","/").strip()) for song in song_objects ]
+    return '\n'.join(result)
 
 def parseTemplate(template):
     embeddedJsonPattern = re.compile(r"^%%:")
@@ -111,12 +104,14 @@ def formatDeclaration(name, parameter):
 def formatDefinition(name, value):
     return '\\set@{name}{{{value}}}\n'.format(name=name, value=value)
 
-def makeTexFile(sb, output):
+def makeTexFile(sb, library, output):
     name = output[:-4]
 
     # default value
     template = "patacrep.tmpl"
     songs = []
+    titleprefixwords = ""
+    prefixes = []
 
     # parse the songbook data
     if "template" in sb:
@@ -125,6 +120,11 @@ def makeTexFile(sb, output):
     if "songs" in sb:
         songs = sb["songs"]
         del sb["songs"]
+    if "titleprefixwords" in sb:
+        prefixes = sb["titleprefixwords"]
+        for prefix in sb["titleprefixwords"]:
+            titleprefixwords += "\\titleprefixword{%s}\n" % prefix
+        sb["titleprefixwords"] = titleprefixwords
 
     parameters = parseTemplate("templates/"+template)
 
@@ -144,34 +144,42 @@ def makeTexFile(sb, output):
             out.write(formatDefinition(name, toValue(parameters[name],value)))
     # output songslist
     if songs == "all":
-        songs = map(lambda x: x[6:], glob.glob('songs/*/*.sg'))
+        songs = map(lambda x: x[len(library) + 6:], recursiveFind(os.path.join(library, 'songs'), '*.sg'))
 
     if len(songs) > 0:
-        out.write(formatDefinition('songslist', songslist(songs)))
+        out.write(formatDefinition('songslist', songslist(library, songs, prefixes)))
     out.write('\\makeatother\n')
 
     # output template
     commentPattern = re.compile(r"^\s*%")
     f = open("templates/"+template)
     content = [ line for line in f if not commentPattern.match(line) ]
+
+    for index, line in enumerate(content):
+        if re.compile("getLibraryImgDirectory").search(line):
+            line = line.replace("\\getLibraryImgDirectory", library + "img/")
+            content[index] = line
+        if re.compile("getLibraryLilypondDirectory").search(line):
+            line = line.replace("\\getLibraryLilypondDirectory", library + "lilypond/")
+            content[index] = line
+
     f.close()
     out.write(''.join(content))
+
     out.close()
 
-def makeDepend(sb, output):
+def makeDepend(sb, library, output):
     name = output[:-2]
 
-    #dependsPattern = re.compile(r"^[^%]*(?:include|input)\{(.*?)\}")
     indexPattern = re.compile(r"^[^%]*\\(?:newauthor|new)index\{.*\}\{(.*?)\}")
     lilypondPattern = re.compile(r"^[^%]*\\(?:lilypond)\{(.*?)\}")
 
     # check for deps (in sb data)
-    #deps = matchRegexp(dependsPattern, [ v for v in sb.itervalues() if type(v) is not list ])
     deps = [];
     if sb["songs"] == "all":
-        deps += glob.glob('songs/*/*.sg')
+        deps += recursiveFind(os.path.join(library, 'songs'), '*.sg')
     else:
-        deps += map(lambda x: "songs/" + x, sb["songs"])
+        deps += map(lambda x: library + "songs/" + x, sb["songs"])
 
     # check for lilypond deps (in songs data) if necessary
     lilypond = []
@@ -193,7 +201,7 @@ def makeDepend(sb, output):
     # write .d file
     out = open(output, 'w')
     out.write('{0} {1} : {2}\n'.format(output, name+".tex", ' '.join(deps)))
-    out.write('{0} : {1}\n'.format(name+".pdf", ' '.join(map(lambda x: x+".sbx",idx)+map(lambda x: "lilypond/"+x+".pdf", lilypond))))
+    out.write('{0} : {1}\n'.format(name+".pdf", ' '.join(map(lambda x: x+".sbx",idx)+map(lambda x: library+"lilypond/"+x+".pdf", lilypond))))
     out.write('\t$(LATEX) {0}\n'.format(name+".tex"))
     out.write('{0} : {1}\n'.format(' '.join(map(lambda x: x+".sxd",idx)), name+".aux"))
     out.close()
@@ -205,8 +213,8 @@ def main():
     locale.setlocale(locale.LC_ALL, '') # set script locale to match user's
     try:
         opts, args = getopt.getopt(sys.argv[1:], 
-                                   "hs:o:d", 
-                                   ["help","songbook=","output=","depend"])
+                                   "hs:o:l:d",
+                                   ["help","songbook=","output=","depend","library="])
     except getopt.GetoptError, err:
         # print help and exit
         print str(err)
@@ -216,6 +224,7 @@ def main():
     songbook = None
     depend = False
     output = None
+    library = './'
 
     for o, a in opts:
         if o in ("-h", "--help"):
@@ -227,6 +236,10 @@ def main():
             depend = True
         elif o in ("-o", "--output"):
             output = a
+        elif o in ("-l", "--library"):
+            if not a.endswith('/'):
+                a += '/'
+            library = a
         else:
             assert False, "unhandled option"
 
@@ -235,12 +248,10 @@ def main():
         sb = json.load(f)
         f.close()
 
-        copyCovers()
-
         if depend:
-            makeDepend(sb, output)
+            makeDepend(sb, library, output)
         else:
-            makeTexFile(sb, output)
+            makeTexFile(sb, library, output)
 
 if __name__ == '__main__':
     main()

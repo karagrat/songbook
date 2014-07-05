@@ -37,7 +37,6 @@ then
     #update version field in tmpl files
     sed -i "s/\"[0-9]\+.[0-9]\+.[0-9]\+\"/\"$MAIN.$MAJOR.$MINOR\"/" templates/patacrep.tmpl
     sed -i "s/\"[0-9]\+.[0-9]\+.[0-9]\+\"/\"$MAIN.$MAJOR.$MINOR\"/" templates/ancient.tmpl
-    sed -i "s/\"[0-9]\+.[0-9]\+.[0-9]\+\"/\"$MAIN.$MAJOR.$MINOR\"/" templates/patacrep-en.tmpl
 else
     echo "keeping release version"
 fi;
@@ -64,7 +63,9 @@ make english.pdf
 make french.pdf 
 make songbook_fr.pdf 
 make songbook_en.pdf 
-make lyricbook.pdf 
+make lyricbook_fr.pdf
+make lyricbook_en.pdf
+make clean
 
 git status 
 

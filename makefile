@@ -18,11 +18,12 @@
 BOOKS_DIR=books/
 SONGBOOKS := $(wildcard $(BOOKS_DIR)/*.sb)
 TARGETS = $(SONGBOOKS:$(BOOKS_DIR)/%.sb=%)
+LIBRARY=./
 
 PDF = $(TARGETS:%=%.pdf)
 
-CHORDS = chords.tex
-CHORDS_SRC = $(shell ls songs/*/*.sg)
+#CHORDS = chords.tex
+#CHORDS_SRC = $(shell ls $(LIBRARY)/songs/*/*.sg)
 
 DATE = $(shell date +%d)-$(shell date +%m)-$(shell date +%Y)
 
@@ -38,7 +39,7 @@ ifeq ($(shell which lilypond),)
   LILYFILE=''
 else
   LILYPOND=lilypond
-  LILY_SRC=$(wildcard lilypond/*.ly)
+  LILY_SRC:=$(wildcard $(LIBRARY)/lilypond/*.ly)
   LILYFILE=$(LILY_SRC:%.ly=%.pdf)
 endif
 
@@ -61,7 +62,6 @@ clean:
 	       $(TARGETS:%=%.nav) $(TARGETS:%=%.snm)
 	@rm -f *.sbx *.sxd *.sxc
 	@rm -f *.pyc
-	@rm -rf covers/
 
 cleanall: clean
 	@rm -f $(PDF)
@@ -81,16 +81,16 @@ $(PDF): %.pdf: %.tex %.aux
 	$(MAKE_INDEX) $< > $@
 
 %.tex: $(BOOKS_DIR)/%.sb
-	$(MAKE_SONGBOOK) -s $< -o $@
+	$(MAKE_SONGBOOK) --library=$(LIBRARY) -s $< -o $@
 
 %.d: $(BOOKS_DIR)/%.sb
-	$(MAKE_SONGBOOK) -s $< -d -o $@
+	$(MAKE_SONGBOOK) --library=$(LIBRARY) -s $< -d -o $@
 
 %.pdf: %.ly
 	@$(LILYPOND) --format=pdf -e '(define-public songbookstaff "$(SONGBOOKSTAFF)")' --output=$(@:%.pdf=%) $<
 
-$(CHORDS): $(CHORDS_SRC)
-	$(MAKE_CHORDS) -o $@
+#$(CHORDS): $(CHORDS_SRC)
+#	$(MAKE_CHORDS) -o $@
 
 archive: cleanall
 	tar -czvf songbook.tar.gz \
@@ -98,7 +98,6 @@ archive: cleanall
 	--exclude=$(BOOKS_DIR)/default.sb \
 	--exclude=perso/* --exclude=perso \
 	--exclude=build/* --exclude=build \
-	--exclude=covers/* --exclude=covers \
 	--exclude=data/* --exclude=data \
 	--exclude=*tar.gz \
 	--transform 's/songbook/songbook-$(DATE)/1' \
