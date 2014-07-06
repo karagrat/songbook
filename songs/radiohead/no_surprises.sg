@@ -1,0 +1,52 @@
+\selectlanguage{english}
+\songcolumns{1}
+\beginsong{No surprises}
+  [by={Radiohead},cov={ok-computer},album={OK Computer}]
+
+  \cover
+  \gtab{D}{XX0232}
+  \gtab{Bm}{2:X02210}
+  \gtab{Em}{022000}
+  \gtab{A}{X02220}
+  \gtab{Asus4}{X02240}
+
+  \begin{verse*} 
+    \[D]A heart thats full up like a l\[Bm]andfill
+    A job that slowly \[Em]kills you
+    \[A]Bruises \[Asus4]that wont \[D]heal
+  \end{verse*}
+
+  \begin{verse*} 
+    You look so tired, unhappy
+    Bring down the Government
+    They don't, they don't speak for us
+  \end{verse*}
+
+  \begin{bridge} 
+    \[D]I'll take a quiet life
+    A \[Bm]handshake of carbon monoxide
+  \end{bridge}
+
+  \begin{chorus}
+    With \[Em]no alarms and \[A]no sur\[Asus4]prises
+    \[Em]no alarms and \[A]no sur\[Asus4]prises \rep{2}
+    \[D]Silence{\dots} \rep{2}
+  \end{chorus}
+
+  \begin{verse*}
+    \musicnote{\[A]\[Gm]\[A]\[Gm]\[Em]\[Gm]}
+    \musicnote{\[D]}
+  \end{verse*}
+
+  \begin{bridge} 
+    Such a pretty house
+    And such a pretty garden
+  \end{bridge}
+  \
+  \begin{chorus}
+    With no alarms and no surprises
+    No alarms and no surprises \rep{2}
+    Please
+  \end{chorus}
+
+\endsong
